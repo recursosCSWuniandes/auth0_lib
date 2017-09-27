@@ -95,7 +95,9 @@ public class FiltroAutenticacion implements Filter {
             if(!"development".equals(prop.getPropertyAsString("environment"))){
            errorResponse(403, "Usuario no autenticado", (HttpServletResponse) response);
           ((HttpServletResponse) response).sendRedirect("http://localhost:8080" + ((HttpServletRequest) request).getContextPath() + "/api/users/me");  
-        }
+        }else{
+            chain.doFilter(request, response);
+            }
            
         } catch (ExecutionException ex) {
             Logger.getLogger(FiltroAutenticacion.class.getName()).log(Level.SEVERE, null, ex);
