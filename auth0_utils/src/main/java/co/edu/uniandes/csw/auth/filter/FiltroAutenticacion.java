@@ -92,8 +92,11 @@ public class FiltroAutenticacion implements Filter {
                }
                }
         } catch (SignatureException e) {
-            errorResponse(403, "Usuario no autenticado", (HttpServletResponse) response);
-            ((HttpServletResponse) response).sendRedirect("http://localhost:8080" + ((HttpServletRequest) request).getContextPath() + "/api/users/me");
+            if(!"development".equals(prop.getPropertyAsString("environment"))){
+           errorResponse(403, "Usuario no autenticado", (HttpServletResponse) response);
+          ((HttpServletResponse) response).sendRedirect("http://localhost:8080" + ((HttpServletRequest) request).getContextPath() + "/api/users/me");  
+        }
+           
         } catch (ExecutionException ex) {
             Logger.getLogger(FiltroAutenticacion.class.getName()).log(Level.SEVERE, null, ex);
         }
