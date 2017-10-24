@@ -15,7 +15,10 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.json.JSONArray;
@@ -34,10 +37,13 @@ public class CacheManager {
     private static LoadingCache<String, List<String>> rolesByUserCache;
     private static LoadingCache<String, HttpResponse<String>> rolesCache;
     private static LoadingCache<String, UserDTO> profileCache;
+    private static HttpResponse<String> userRoles;
+    private static LoadingCache<String, Map<String, List<String>>> permissionsByRoleCache;
 
     static {
         try {
             authorization = new AuthorizationApi();
+
         } catch (IOException | UnirestException | JSONException | InterruptedException | ExecutionException ex) {
             Logger.getLogger(CacheManager.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -53,13 +59,34 @@ public class CacheManager {
                 .build(new CacheLoader<String, List<String>>() { // build the cacheloader
 
                     @Override
-                    public List<String> load(String userId) throws Exception {
+                    public List<String> load(String roleId) throws Exception {
                         if (AuthenticationApi.devPermissions() != null) {
                             return AuthenticationApi.devPermissions();
                         }
-                        return getAuthorization().getPermissionsPerRole(getAuthorization().getRolesIDPerUser(getAuthorization().authorizationGetUserRoles(userId)));
+                        List<String> rolesId = getAuthorization().getRolesIDPerUser(getUserRoles());
+                        List<String> result = new ArrayList<>();
+                        Map<String, List<String>> mp = getPermissionsByRoleCache().get("s");
+
+                        for (String s : rolesId) {
+                            for (String rr : mp.get(s)) {
+                                result.add(rr);
+                            }
+                        }
+                        return result;
                     }
                 });
+
+        setPermissionsByRoleCache(CacheBuilder.newBuilder()
+                .maximumSize(10000) // maximum 100 records can be cached
+                .expireAfterAccess(30, TimeUnit.MINUTES) // cache will expire after 30 minutes of access
+                .build(new CacheLoader<String, Map<String, List<String>>>() { // build the cacheloader
+                    @Override
+                    public Map<String, List<String>> load(String k) throws Exception {
+                        return getAuthorization().getPermissionsPerRole(); //To change body of generated methods, choose Tools | Templates.
+                    }
+
+                }));
+
         rolesByUserCache = CacheBuilder.newBuilder()
                 .maximumSize(10000) // maximum 100 records can be cached
                 .expireAfterAccess(30, TimeUnit.MINUTES) // cache will expire after 30 minutes of access
@@ -72,7 +99,8 @@ public class CacheManager {
                             ls.add("admin");
                             return ls;
                         }
-                        return getAuthorization().getRoles(new JSONArray(getAuthorization().authorizationGetUserRoles(userId).getBody()));
+                        setUserRoles(getAuthorization().authorizationGetUserRoles(userId));
+                        return getAuthorization().getRoles(new JSONArray(getUserRoles().getBody()));
                     }
                 });
 
@@ -116,7 +144,9 @@ public class CacheManager {
             getRolesCache().get("roles");
             JSONArray jarray = getAuthorization().getGroups().getJSONArray("groups").getJSONObject(0).getJSONArray("members");
             int k = 0;
+
             for (; k < jarray.length(); k++) {
+
                 Logger.getAnonymousLogger().info("cargando perfil para usuario con id ".concat(jarray.get(k).toString()));
                 getProfileCache().get(jarray.get(k).toString());
                 Logger.getAnonymousLogger().info("cargando roles para usuario con id  ".concat(jarray.get(k).toString()));
@@ -178,6 +208,37 @@ public class CacheManager {
      */
     public static LoadingCache<String, UserDTO> getProfileCache() {
         return profileCache;
+    }
+
+    /**
+     * @return the userRoles
+     */
+    public static HttpResponse<String> getUserRoles() {
+        return userRoles;
+    }
+
+    /**
+     * @param aUserRoles the userRoles to set
+     */
+    public static void setUserRoles(HttpResponse<String> aUserRoles) {
+        userRoles = aUserRoles;
+    }
+
+    /**
+     * @return the roleList
+     */
+    /**
+     * @return the permissionsByRoleCache
+     */
+    public static LoadingCache<String, Map<String, List<String>>> getPermissionsByRoleCache() {
+        return permissionsByRoleCache;
+    }
+
+    /**
+     * @param aPermissionsByRoleCache the permissionsByRoleCache to set
+     */
+    public static void setPermissionsByRoleCache(LoadingCache<String, Map<String, List<String>>> aPermissionsByRoleCache) {
+        permissionsByRoleCache = aPermissionsByRoleCache;
     }
 
     /**
