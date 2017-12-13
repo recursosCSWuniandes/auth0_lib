@@ -24,9 +24,14 @@ SOFTWARE.
  */
 package co.edu.uniandes.csw.auth.service;
 
+import co.edu.uniandes.csw.auth.conexions.AuthenticationApi;
 import co.edu.uniandes.csw.auth.model.UserDTO;
 import co.edu.uniandes.csw.auth.filter.StatusCreated;
+import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.SignatureException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
@@ -41,45 +46,72 @@ import org.json.JSONException;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
+import javax.ws.rs.WebApplicationException;
+import org.json.JSONObject;
 
 
 @Path("/users")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class AuthService {
+    
+    private  AuthenticationApi auth;
 
     @Context
     private HttpServletResponse rsp;
 
     @Context
     private HttpServletRequest req;
+    private static boolean logged = false;
+
+    public AuthService() throws IOException, UnirestException, JSONException, InterruptedException, ExecutionException {
+        this.auth = new AuthenticationApi();
+    }
 
     
 
     @Path("/login")
     @POST
     public UserDTO login(UserDTO user) throws UnirestException, JSONException, IOException, InterruptedException, ExecutionException {
-        return null;
+     try{
+        String  str = auth.getSubject(user, rsp);
+        logged = true;
+      return  AuthenticationApi.getProfileCache().get(str);
+     }catch(SignatureException se){
+     throw new WebApplicationException(se.getMessage());
+     }
     }
 
     @Path("/logout")
     @GET
     public void logout() {
-        
+        auth.authenticationLogout();
+        logged = false;
     }
 
     @Path("/register")
     @POST
     @StatusCreated
     public void register(UserDTO user) throws UnirestException, JSONException, IOException, InterruptedException, ExecutionException {
-       System.out.println(user);
+
+      HttpResponse<String> rs = auth.authenticationSignUP(user);
+       auth.HttpServletResponseBinder(rs, rsp);
     }
 
     @Path("/me")
     @GET
     public UserDTO getCurrentUser() throws JSONException, UnirestException, IOException, InterruptedException, ExecutionException {
-       
-        
+       Jws<Claims> claim = null;
+       String subject;
+        if (logged & req.getCookies()!=null) {
+            claim = auth.decryptToken(req);
+             System.out.println("dentro de claim");
+            System.out.println(claim);
+        }
+        if (claim != null) {
+            subject = claim.getBody().getSubject(); 
+           return AuthenticationApi.getProfileCache().get(subject);
+        }
       return null;  
       
     }

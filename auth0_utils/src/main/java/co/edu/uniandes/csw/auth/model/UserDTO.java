@@ -21,23 +21,22 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-*/
-
+ */
 package co.edu.uniandes.csw.auth.model;
 
-
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.bind.annotation.XmlRootElement;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 @XmlRootElement
 public class UserDTO implements Serializable {
-    
-    
+
     private String givenName;
     private String middleName;
     private String surName;
@@ -47,41 +46,58 @@ public class UserDTO implements Serializable {
     private String rememberMe;
     private List<String> roles;
     private List<String> permissions;
-    
-    public UserDTO(){}
-    
+
+    public UserDTO() {
+    }
+
     public UserDTO(JSONObject json) {
+
         try {
-            if(json.get("username")!=null){
-                this.setUserName((String)json.get("username"));
+            if (json.getJSONObject("user_metadata").get("username") != null) {
+                this.setUserName((String) json.getJSONObject("user_metadata").get("username"));
             }
-            if(json.get("given_name")!=null){
-                this.setGivenName((String)json.get("given_name"));
+            if (json.getJSONObject("user_metadata").get("given_name") != null) {
+                this.setGivenName((String) json.getJSONObject("user_metadata").get("given_name"));
             }
-            if(json.get("middle_name")!=null){
-             this.setMiddleName((String)json.get("middle_name"));
+            if (json.getJSONObject("user_metadata").get("middle_name") != null) {
+                this.setMiddleName((String) json.getJSONObject("user_metadata").get("middle_name"));
             }
-            if(json.get("sur_name")!=null){
-             this.setSurName((String)json.get("sur_name"));
+            if (json.getJSONObject("user_metadata").get("sur_name") != null) {
+                this.setSurName((String) json.getJSONObject("user_metadata").get("sur_name"));
             }
-            if(json.get("email")!=null){
-             this.setEmail((String)json.get("email"));
+            if (json.getJSONObject("user_metadata").get("email") != null) {
+                this.setEmail((String) json.getJSONObject("user_metadata").get("email"));
             }
-            
+            if (json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("roles").length() > 0) {
+                JSONArray roles = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("roles");
+                List<String> roleList = new ArrayList<>();
+                for (int c = 0; c < roles.length(); c++) {
+                    roleList.add(roles.getString(c));
+                }
+                this.setRoles(roleList);
+            }
+            if (json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("permissions").length() > 0) {
+                JSONArray permissions = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("permissions");
+                List<String> permissionList = new ArrayList<>();
+                for (int c = 0; c < permissions.length(); c++) {
+                   permissionList.add(permissions.getString(c));
+                }
+                this.setPermissions(permissionList);
+            }
+
         } catch (JSONException ex) {
             Logger.getLogger(UserDTO.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-    
+
     /**
      * @return the givenName
      */
-    
     public String getGivenName() {
         return givenName;
     }
 
-   /**
+    /**
      * @param givenName the givenName to set
      */
     public void setGivenName(String givenName) {
@@ -91,7 +107,6 @@ public class UserDTO implements Serializable {
     /**
      * @return the middleName
      */
-    
     public String getMiddleName() {
         return middleName;
     }
@@ -106,12 +121,11 @@ public class UserDTO implements Serializable {
     /**
      * @return the surName
      */
-    
     public String getSurName() {
         return surName;
     }
 
-   /**
+    /**
      * @param surName the surName to set
      */
     public void setSurName(String surName) {
@@ -120,8 +134,7 @@ public class UserDTO implements Serializable {
 
     /**
      * @return the userName
-     */ 
-    
+     */
     public String getUserName() {
         return userName;
     }
@@ -136,7 +149,6 @@ public class UserDTO implements Serializable {
     /**
      * @return the password
      */
-    
     public String getPassword() {
         return password;
     }
@@ -207,8 +219,4 @@ public class UserDTO implements Serializable {
     /**
      * @return the id_token
      */
-
- 
-    
 }
-

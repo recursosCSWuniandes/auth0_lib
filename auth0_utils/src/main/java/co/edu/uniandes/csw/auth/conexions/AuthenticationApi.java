@@ -6,6 +6,9 @@
 package co.edu.uniandes.csw.auth.conexions;
 
 import co.edu.uniandes.csw.auth.model.UserDTO;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -19,11 +22,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.crypto.spec.SecretKeySpec;
@@ -39,8 +40,24 @@ import org.json.JSONObject;
  */
 public class AuthenticationApi {
 
+    /**
+     * @return the profileCache
+     */
+    public static LoadingCache<String, UserDTO> getProfileCache() {
+        return profileCache;
+    }
+
+    /**
+     * @param aProfileCache the profileCache to set
+     */
+    public static void setProfileCache(LoadingCache<String, UserDTO> aProfileCache) {
+        profileCache = aProfileCache;
+    }
+
     private Properties prop = new Properties();
     private InputStream input = null;
+    private static HttpServletResponse rsp;
+    private static LoadingCache<String, UserDTO> profileCache;
     private static final String path = System.getenv("AUTH0_PROPERTIES");
 
     public AuthenticationApi() throws IOException, UnirestException, JSONException, InterruptedException, ExecutionException {
@@ -55,10 +72,20 @@ public class AuthenticationApi {
         } catch (FileNotFoundException ex) {
             Logger.getLogger(AuthenticationApi.class.getName()).log(Level.SEVERE, null, ex);
         }
+        profileCache = CacheBuilder.newBuilder()
+                .maximumSize(10000) // maximum 100 records can be cached
+                .expireAfterAccess(30, TimeUnit.MINUTES) // cache will expire after 30 minutes of access
+                .build(new CacheLoader<String, UserDTO>() { // build the cacheloader
+                    @Override
+                    public UserDTO load(String userId) throws Exception {
+                        JSONObject jo = new JSONObject(managementGetUser(userId).getBody());
+                        return new UserDTO(jo);
+                    }
+                });
     }
 
     public HttpResponse<String> managementToken() throws UnirestException {
-        Unirest.setTimeouts(1000, 10000);
+        Unirest.setTimeouts(0, 0);
         return Unirest.post(getProp().getProperty("accessToken").trim())
                 .header("content-type", "application/json")
                 .body("{\"grant_type\":\"client_credentials\","
@@ -69,31 +96,14 @@ public class AuthenticationApi {
     }
 
     public HttpResponse<String> managementGetUser(String id) throws UnirestException, JSONException {
-
-        Unirest.setTimeouts(1000, 10000);
+        Unirest.setTimeouts(0, 0);
         return Unirest.get(getProp().getProperty("users").trim() + "/" + id.replace("|", "%7C"))
                 .header("content-type", "application/json")
                 .header("Authorization", "Bearer " + getManagementAccessToken()).asString();
     }
 
-    public HttpResponse<String> managementUpdateClientGrants() throws UnirestException, JSONException {
-        Unirest.setTimeouts(1000, 10000);
-        return Unirest.patch(getProp().getProperty("managementAudience").trim() + "clients/" + getProp().getProperty("authenticationClientId").trim())
-                .header("content-type", "application/json")
-                .header("Authorization", "Bearer " + getManagementAccessToken())
-                .body("{\"grant_types\":[\"password\"]}")
-                .asString();
-    }
-
-    public HttpResponse<String> managementGetClientGrants(String clientId) throws UnirestException, JSONException {
-        return Unirest.get(getProp().getProperty("managementAudience").trim() + "clients/" + getProp().getProperty(clientId).trim())
-                .header("content-type", "application/json")
-                .header("Authorization", "Bearer " + getManagementAccessToken()).asString();
-
-    }
-
     public HttpResponse<String> authenticationToken(UserDTO dto) throws UnirestException {
-        Unirest.setTimeouts(1000, 10000);
+        Unirest.setTimeouts(0, 0);
         return Unirest.post(getProp().getProperty("accessToken").trim())
                 .header("content-type", "application/json")
                 .body("{"
@@ -116,18 +126,21 @@ public class AuthenticationApi {
                         + "\"user_metadata\":{\"given_name\":\"" + dto.getGivenName() + "\","
                         + "\"email\":\"" + dto.getEmail() + "\","
                         + "\"username\":\"" + dto.getUserName() + "\","
+                        + "\"roles\":\"" + dto.getRoles() + "\","
+                        + "\"group\":\"" + getProp().getProperty("groupName").trim() + "\","
                         + "\"middle_name\":\"" + dto.getMiddleName() + "\","
                         + "\"sur_name\":\"" + dto.getSurName() + "\"}}").asString();
+
     }
 
     public HttpResponse<String> authenticationUserInfo(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException {
-        Unirest.setTimeouts(1000, 10000);
+        Unirest.setTimeouts(0, 0);
         return Unirest.get(getProp().getProperty("userInfo").trim())
                 .header("Authorization", "Bearer " + getAuthenticationAccessToken(dto, rsp)).asString();
     }
 
     public void authenticationLogout() {
-        Unirest.setTimeouts(1000, 10000);
+        Unirest.setTimeouts(0, 0);
         Unirest.get(getProp().getProperty("logout").trim());
     }
 
@@ -140,7 +153,13 @@ public class AuthenticationApi {
     public String getAuthenticationAccessToken(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException {
         HttpResponse<String> res = authenticationToken(dto);
         JSONObject json = new JSONObject(res.getBody());
-        rsp.addHeader("id_token", json.get("id_token").toString());
+        try {
+            if (json.get("error_description").equals("Wrong email or password.")) {
+                throw new SignatureException("Email o password invalidos");
+            }
+        } catch (JSONException je) {
+            rsp.addHeader("id_token", json.get("id_token").toString());
+        }
         return (String) json.get("access_token");
     }
     //get user profile
@@ -178,7 +197,6 @@ public class AuthenticationApi {
     }
 
     public Jws<Claims> decryptToken(HttpServletRequest req) {
-
         Cookie[] cookie = req.getCookies();
         String jwt = null;
 
@@ -217,26 +235,4 @@ public class AuthenticationApi {
         this.prop = prop;
     }
 
-    public static List<String> devPermissions() throws IOException, UnirestException, JSONException, InterruptedException, ExecutionException {
-        JSONObject js = new JSONObject(new AuthenticationApi().getProp());
-        if ("development".equals(js.get("environment").toString().trim())) {
-            Iterator it = js.keys();
-            List<String> permissions = new ArrayList<>();
-            while (it.hasNext()) {
-                String g = (String) it.next();
-                if (g.contains("/api/")) {
-                    if (!"users".equals(g.split("/")[2])) {
-                        permissions.add("read:".concat(g.split("/")[2]));
-                        permissions.add("create:".concat(g.split("/")[2]));
-                        permissions.add("update:".concat(g.split("/")[2]));
-                        permissions.add("delete:".concat(g.split("/")[2]));
-                    }
-
-                }
-            }
-            return permissions;
-        } else {
-            return null;
-        }
-    }
 }
