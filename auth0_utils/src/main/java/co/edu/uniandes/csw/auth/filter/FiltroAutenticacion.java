@@ -32,14 +32,14 @@ public class FiltroAutenticacion implements Filter {
     private static int cacheCount;
    static{try {
        
-       if(cacheCount==0){
+      if(cacheCount==0){
            System.out.println("Inicializando cache.....");
       cacheCount = CacheManager.cacheInit();
-       }
+       } 
         } catch (UnirestException | JSONException | InterruptedException | ExecutionException | IOException ex) {
             Logger.getLogger(FiltroAutenticacion.class.getName()).log(Level.SEVERE, null, ex);
         }
-   }
+   } 
 
     
     @Override

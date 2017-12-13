@@ -223,5 +223,10 @@ public class AuthorizationApi {
 
         return mp;
     }
-
+ public static void main(String[] args) throws IOException, UnirestException, JSONException, InterruptedException,ExecutionException{
+ AuthorizationApi ap = new AuthorizationApi();
+ System.out.println(ap.authorizationAccessToken().getBody());
+ System.out.println(ap.authorizationGetGroupRoles().getBody());
+ System.out.println(ap.authorizationGetGroups().getBody());
+ }
 }
