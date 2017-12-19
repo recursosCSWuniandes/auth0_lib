@@ -1,6 +1,6 @@
 package co.edu.uniandes.csw.auth.filter;
 
-import co.edu.uniandes.csw.auth.conexions.AuthenticationApi;
+import co.edu.uniandes.csw.auth.api.AuthenticationApi;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import io.jsonwebtoken.Claims;

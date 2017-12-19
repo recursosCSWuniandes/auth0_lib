@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package co.edu.uniandes.csw.auth.conexions;
+package co.edu.uniandes.csw.auth.api;
 
 import co.edu.uniandes.csw.auth.model.UserDTO;
 import com.google.common.cache.CacheBuilder;
@@ -94,6 +94,21 @@ public class AuthenticationApi {
                         + "\"audience\":\"" + getProp().getProperty("managementAudience").trim() + "\"}").asString();
 
     }
+    /*
+    accessToken
+    managementClientId
+    managementScretKey
+    managementAudience
+    users
+    grantType
+    authenticationClientId
+    authenticationClientScretKey
+    signUp
+    groupName
+    userInfo
+    
+    
+    */
 
     public HttpResponse<String> managementGetUser(String id) throws UnirestException, JSONException {
         Unirest.setTimeouts(0, 0);

@@ -24,7 +24,7 @@ SOFTWARE.
  */
 package co.edu.uniandes.csw.auth.service;
 
-import co.edu.uniandes.csw.auth.conexions.AuthenticationApi;
+import co.edu.uniandes.csw.auth.api.AuthenticationApi;
 import co.edu.uniandes.csw.auth.model.UserDTO;
 import co.edu.uniandes.csw.auth.filter.StatusCreated;
 import com.mashape.unirest.http.HttpResponse;
