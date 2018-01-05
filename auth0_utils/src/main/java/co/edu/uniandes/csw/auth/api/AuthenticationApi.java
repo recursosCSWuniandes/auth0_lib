@@ -17,10 +17,12 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.SignatureException;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.security.Key;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -56,14 +58,16 @@ public class AuthenticationApi {
 
     private Properties prop = new Properties();
     private InputStream input = null;
-    private static HttpServletResponse rsp;
     private static LoadingCache<String, UserDTO> profileCache;
-    private static final String path = System.getenv("AUTH0_PROPERTIES");
+    private static final String PATH = System.getenv("AUTH0_PROPERTIES");
+    private Process process;
+    public static String tmp_path;
+    public static String access_token;
 
     public AuthenticationApi() throws IOException, UnirestException, JSONException, InterruptedException, ExecutionException {
 
         try {
-            input = new FileInputStream(path);
+            input = new FileInputStream(PATH);
             try {
                 prop.load(input);
             } catch (IOException ex) {
@@ -86,6 +90,7 @@ public class AuthenticationApi {
 
     public HttpResponse<String> managementToken() throws UnirestException {
         Unirest.setTimeouts(0, 0);
+       
         return Unirest.post(getProp().getProperty("accessToken").trim())
                 .header("content-type", "application/json")
                 .body("{\"grant_type\":\"client_credentials\","
@@ -94,21 +99,6 @@ public class AuthenticationApi {
                         + "\"audience\":\"" + getProp().getProperty("managementAudience").trim() + "\"}").asString();
 
     }
-    /*
-    accessToken
-    managementClientId
-    managementScretKey
-    managementAudience
-    users
-    grantType
-    authenticationClientId
-    authenticationClientScretKey
-    signUp
-    groupName
-    userInfo
-    
-    
-    */
 
     public HttpResponse<String> managementGetUser(String id) throws UnirestException, JSONException {
         Unirest.setTimeouts(0, 0);
@@ -119,15 +109,29 @@ public class AuthenticationApi {
 
     public HttpResponse<String> authenticationToken(UserDTO dto) throws UnirestException {
         Unirest.setTimeouts(0, 0);
-        return Unirest.post(getProp().getProperty("accessToken").trim())
+      return Unirest.post(getProp().getProperty("accessToken").trim())
                 .header("content-type", "application/json")
                 .body("{"
-                        + "\"grant_type\":\"" + getProp().getProperty("grantType").trim() + "\","
+                      + "\"grant_type\":\"" + getProp().getProperty("grantType").trim() + "\","
                         + "\"username\":\"" + dto.getUserName() + "\","
                         + "\"password\":\"" + dto.getPassword() + "\","
+                        + "\"scope\":\"offline_access\","
                         + "\"client_id\":\"" + getProp().getProperty("authenticationClientId").trim() + "\","
                         + "\"client_secret\":\"" + getProp().getProperty("authenticationSecretKey").trim() + "\""
                         + "}").asString();
+    }
+    
+    public HttpResponse<String> refreshToken() throws UnirestException{
+        Unirest.setTimeouts(0, 0);
+        return Unirest.post(getProp().getProperty("accessToken").trim())
+                .header("content-type", "application/json")
+                .body("{"
+                      + "\"grant_type\":\"refresh_token\","
+                        + "\"client_id\":\"" + getProp().getProperty("authenticationClientId").trim() + "\","
+                        + "\"client_secret\":\"" + getProp().getProperty("authenticationSecretKey").trim() + "\","
+                        + "\"refresh_token\":\"" + System.getenv("REFRESH_TOKEN") + "\""
+                        + "}").asString();
+        
     }
 
     public HttpResponse<String> authenticationSignUP(UserDTO dto) throws UnirestException {
@@ -148,7 +152,7 @@ public class AuthenticationApi {
 
     }
 
-    public HttpResponse<String> authenticationUserInfo(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException {
+    public HttpResponse<String> authenticationUserInfo(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException, IOException {
         Unirest.setTimeouts(0, 0);
         return Unirest.get(getProp().getProperty("userInfo").trim())
                 .header("Authorization", "Bearer " + getAuthenticationAccessToken(dto, rsp)).asString();
@@ -165,8 +169,9 @@ public class AuthenticationApi {
         return (String) json.get("access_token");
     }
 
-    public String getAuthenticationAccessToken(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException {
+    public String getAuthenticationAccessToken(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException, IOException {
         HttpResponse<String> res = authenticationToken(dto);
+        
         JSONObject json = new JSONObject(res.getBody());
         try {
             if (json.get("error_description").equals("Wrong email or password.")) {
@@ -175,11 +180,35 @@ public class AuthenticationApi {
         } catch (JSONException je) {
             rsp.addHeader("id_token", json.get("id_token").toString());
         }
+      
+        String s ="";
+       if(!tokenExists()){
+            process = Runtime.getRuntime().exec("setx REFRESH_TOKEN "+json.getString("refresh_token"));
+        BufferedReader stdInput = new BufferedReader(new
+             InputStreamReader(process.getInputStream()));
+
+        BufferedReader stdError = new BufferedReader(new
+             InputStreamReader(process.getErrorStream()));
+
+        // read the output from the command
+        System.out.println("Here is the standard output of the command:\n");
+        while ((s = stdInput.readLine()) != null) {
+            System.out.println(s);
+        }
+       // read any errors from the attempted command
+        System.out.println("Here is the standard error of the command (if any):\n");
+        while ((s = stdError.readLine()) != null) {
+            System.out.println(s);
+        } 
+       } 
         return (String) json.get("access_token");
     }
-    //get user profile
-
-    public String getSubject(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException {
+     //get user profile
+    public boolean  tokenExists(){
+    return null!=System.getenv("REFRESH_TOKEN");
+    }
+    
+    public String getSubject(UserDTO dto, HttpServletResponse rsp) throws UnirestException, JSONException, IOException {
         HttpResponse<String> res = authenticationUserInfo(dto, rsp);
         JSONObject json = new JSONObject(res.getBody());
         return json.get("sub").toString();

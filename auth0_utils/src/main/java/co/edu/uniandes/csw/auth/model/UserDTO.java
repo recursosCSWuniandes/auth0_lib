@@ -54,35 +54,35 @@ public class UserDTO implements Serializable {
 
         try {
             if (json.getJSONObject("user_metadata").get("username") != null) {
-                this.setUserName((String) json.getJSONObject("user_metadata").get("username"));
+                userName = (String) json.getJSONObject("user_metadata").get("username");
             }
             if (json.getJSONObject("user_metadata").get("given_name") != null) {
-                this.setGivenName((String) json.getJSONObject("user_metadata").get("given_name"));
+                givenName = (String) json.getJSONObject("user_metadata").get("given_name");
             }
             if (json.getJSONObject("user_metadata").get("middle_name") != null) {
-                this.setMiddleName((String) json.getJSONObject("user_metadata").get("middle_name"));
+                middleName = (String) json.getJSONObject("user_metadata").get("middle_name");
             }
             if (json.getJSONObject("user_metadata").get("sur_name") != null) {
-                this.setSurName((String) json.getJSONObject("user_metadata").get("sur_name"));
+                surName = (String) json.getJSONObject("user_metadata").get("sur_name");
             }
             if (json.getJSONObject("user_metadata").get("email") != null) {
-                this.setEmail((String) json.getJSONObject("user_metadata").get("email"));
+                email = (String) json.getJSONObject("user_metadata").get("email");
             }
             if (json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("roles").length() > 0) {
-                JSONArray roles = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("roles");
+                JSONArray rols = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("roles");
                 List<String> roleList = new ArrayList<>();
-                for (int c = 0; c < roles.length(); c++) {
-                    roleList.add(roles.getString(c));
+                for (int c = 0; c < rols.length(); c++) {
+                    roleList.add(rols.getString(c));
                 }
-                this.setRoles(roleList);
+                roles = roleList;
             }
             if (json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("permissions").length() > 0) {
-                JSONArray permissions = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("permissions");
+                JSONArray permission = json.getJSONObject("app_metadata").getJSONObject("authorization").getJSONArray("permissions");
                 List<String> permissionList = new ArrayList<>();
-                for (int c = 0; c < permissions.length(); c++) {
-                   permissionList.add(permissions.getString(c));
+                for (int c = 0; c < permission.length(); c++) {
+                   permissionList.add(permission.getString(c));
                 }
-                this.setPermissions(permissionList);
+                permissions = permissionList;
             }
 
         } catch (JSONException ex) {

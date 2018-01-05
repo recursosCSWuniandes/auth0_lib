@@ -4,8 +4,8 @@ import co.edu.uniandes.csw.auth.api.AuthenticationApi;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureException;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,6 +27,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 @WebFilter(filterName = "FiltroAutenticacion", urlPatterns = {"/api/*"})
 public class FiltroAutenticacion implements Filter {
@@ -68,14 +69,24 @@ public class FiltroAutenticacion implements Filter {
                     jwt = c.getValue();
                 }
                 if ("username".equals(c.getName())) {
-                    usuario = c.getValue();
+                    usuario = c.getValue();                  
                 }
             }
         }
         try {
 
             if (usuario != null && jwt != null) {
+               try{
                 claim = auth.decryptToken(jwt);
+               }catch(ExpiredJwtException ej){
+                   try {
+                     JSONObject jo = new JSONObject(auth.refreshToken().getBody());
+                   //  new Cookie("id_token",jo.getString("id_token"));
+                     claim =auth.decryptToken(jo.getString("id_token"));
+                   } catch (JSONException | UnirestException ex) {
+                       Logger.getLogger(FiltroAutenticacion.class.getName()).log(Level.SEVERE, null, ex);
+                   } 
+               }
                 if (claim != null) {
                     subject = claim.getBody().getSubject();
                     permissions = AuthenticationApi.getProfileCache().get(subject).getPermissions();

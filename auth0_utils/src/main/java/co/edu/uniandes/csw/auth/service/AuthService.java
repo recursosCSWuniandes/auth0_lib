@@ -42,20 +42,16 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import org.json.JSONException;
-
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 import javax.ws.rs.WebApplicationException;
-import org.json.JSONObject;
-
 
 @Path("/users")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class AuthService {
     
-    private  AuthenticationApi auth;
+    private final  AuthenticationApi auth;
 
     @Context
     private HttpServletResponse rsp;
@@ -67,8 +63,6 @@ public class AuthService {
     public AuthService() throws IOException, UnirestException, JSONException, InterruptedException, ExecutionException {
         this.auth = new AuthenticationApi();
     }
-
-    
 
     @Path("/login")
     @POST
@@ -103,10 +97,8 @@ public class AuthService {
     public UserDTO getCurrentUser() throws JSONException, UnirestException, IOException, InterruptedException, ExecutionException {
        Jws<Claims> claim = null;
        String subject;
-        if (logged & req.getCookies()!=null) {
+        if (logged & req.getCookies()!=null) {     
             claim = auth.decryptToken(req);
-             System.out.println("dentro de claim");
-            System.out.println(claim);
         }
         if (claim != null) {
             subject = claim.getBody().getSubject(); 
